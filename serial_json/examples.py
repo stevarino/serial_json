@@ -5,7 +5,7 @@ import os.path as path
 import resource
 import time
 
-import sejson
+import serial_json
 
 examples = OrderedDict()
 [OrderedDict.__setitem__(examples, e[0], e[1]) for e in [
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
-    json_parser = sejson.load
+    json_parser = serial_json.load
     if args.use_json:
         json_parser = json.load
     example = examples[args.example]

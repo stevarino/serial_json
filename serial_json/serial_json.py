@@ -3,6 +3,7 @@
 from __future__ import print_function, unicode_literals
 
 import re
+import sys
 
 try:
     CHR = unichr
@@ -78,9 +79,17 @@ class Parser(object):
         't': '\t'
     }
 
-    def __init__(self, file_object, terminators=False, rewind=True,
-                 list_paths=False, **kwargs):
-        '''Constructor. '''
+    def __init__(self, file_object, termAinators=False, rewind=True,
+                 list_paths=False, encoding='utf-8', **kwargs):
+        '''Constructor. 
+        :param file_object: A file-like object to read.
+        :param terminators: If true, yields terminators on beginning and end
+                            of collections.
+        :param rewind: Whether to seek the file-like object to 0 on load.
+        :param list_paths: Yield paths as a list datatype rather than a
+                           jsonpath.
+        :param encoding: Encoding of the file object.
+        '''
         self.start_object = StartObject()
         self.end_object = EndObject()
         self.start_array = StartArray()
@@ -95,7 +104,9 @@ class Parser(object):
                 "', '".join(kwargs.keys())
             ))
         self._list_paths = list_paths
+        self._encoding = encoding
 
+        self._is_python2 = sys.version_info[0] < 3
         self._iter = None
 
         # parser variables
@@ -114,6 +125,9 @@ class Parser(object):
     def __iter__(self):
         for result in self._parse_value():
             yield result
+
+    def __next__(self):
+        return self.next()
 
     def next(self):
         '''Return next item from iterator'''
@@ -363,7 +377,10 @@ class Parser(object):
         byte_buffer = self.reader.read(self.buffer_size)
         while True:
             try:
-                self.buffer = byte_buffer.decode('utf-8')
+                if self._is_python2:
+                    self.buffer = byte_buffer.decode(self._encoding)
+                else:
+                    self.buffer = byte_buffer
                 break
             except UnicodeDecodeError:
                 byte_buffer += self.reader.read(1)
@@ -383,6 +400,7 @@ class Parser(object):
 
 def loads(json_string, *args, **kwargs):
     '''Load a json object via string. '''
+    python2 = True
     try:
         from cStringIO import StringIO
     except ImportError:
@@ -390,14 +408,23 @@ def loads(json_string, *args, **kwargs):
             from StringIO import StringIO
         except ImportError:
             from io import StringIO
-    import codecs
+            python2 = False
+
     buffer = StringIO()
-    codec = codecs.lookup("utf8")
-    wrapper = codecs.StreamReaderWriter(
-        buffer, codec.streamreader, codec.streamwriter)
-    wrapper.write(json_string.encode('utf8'))
-    wrapper.seek(0, 0)
-    return Parser(wrapper, *args, **kwargs)
+    if python2:
+        import codecs
+        codec = codecs.lookup("utf8")
+        wrapper = codecs.StreamReaderWriter(
+            buffer, codec.streamreader, codec.streamwriter)
+        if isinstance(json_string, str):
+            json_string = json_string.encode('utf-8')
+        wrapper.write(json_string)
+        wrapper.seek(0, 0)
+        return Parser(wrapper, *args, **kwargs)
+    buffer.write(json_string)
+    buffer.seek(0, 0)
+
+    return Parser(buffer, *args, **kwargs)
 
 def load(json_file, *args, **kwargs):
     '''Load a json object via file object. '''
