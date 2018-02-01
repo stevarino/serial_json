@@ -79,7 +79,7 @@ class Parser(object):
         't': '\t'
     }
 
-    def __init__(self, file_object, termAinators=False, rewind=True,
+    def __init__(self, file_object, terminators=False, rewind=True,
                  list_paths=False, encoding='utf-8', **kwargs):
         '''Constructor. 
         :param file_object: A file-like object to read.
